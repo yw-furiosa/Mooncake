@@ -15,6 +15,9 @@
 #include "memory_location.h"
 
 #include "cuda_alike.h"
+#if defined(USE_FURIOSA)
+#include <furiosa_mem.h>
+#endif
 
 namespace mooncake {
 
@@ -34,6 +37,15 @@ const std::vector<MemoryLocationEntry> getMemoryLocation(void *start,
                                                          size_t len,
                                                          bool only_first_page) {
     std::vector<MemoryLocationEntry> entries;
+
+#if defined(USE_FURIOSA)
+    if (furiosa_mem_contains(start)) {
+        int dev_id = furiosa_mem_get_device_id(start);
+        std::string loc = "furiosa:" + std::to_string(dev_id >= 0 ? dev_id : 0);
+        entries.push_back({(uint64_t)start, len, loc});
+        return entries;
+    }
+#endif
 
 #if defined(USE_CUDA) || defined(USE_MUSA) || defined(USE_HIP)
     cudaPointerAttributes attributes;

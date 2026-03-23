@@ -25,6 +25,9 @@
 
 #include "config.h"
 #include "cuda_alike.h"
+#if defined(USE_FURIOSA)
+#include <furiosa_mem.h>
+#endif
 #include "transport/rdma_transport/endpoint_store.h"
 #include "transport/rdma_transport/rdma_endpoint.h"
 #include "transport/rdma_transport/rdma_transport.h"
@@ -217,7 +220,20 @@ int RdmaContext::registerMemoryRegionInternal(void *addr, size_t length,
                       << "shrink it to " << globalConfig().max_mr_size;
         length = (size_t)globalConfig().max_mr_size;
     }
-#if !defined(WITH_NVIDIA_PEERMEM) && defined(USE_CUDA)
+#if defined(USE_FURIOSA)
+    if (furiosa_mem_contains(addr)) {
+        int dmabuf_fd = dup(furiosa_mem_get_dmabuf_fd(
+            furiosa_mem_get_device_id(addr)));
+        size_t offset = furiosa_mem_to_offset(addr);
+        mrMeta.addr = addr;
+        mrMeta.mr = ibv_reg_dmabuf_mr(pd_, offset, length,
+                                      (uintptr_t)addr, dmabuf_fd, access);
+        close(dmabuf_fd);
+    } else {
+        mrMeta.addr = addr;
+        mrMeta.mr = ibv_reg_mr(pd_, addr, length, access);
+    }
+#elif !defined(WITH_NVIDIA_PEERMEM) && defined(USE_CUDA)
     // Implement register memory in a way that does not assume the presence of
     // nvidia-peermem. If memory is on CPU call ibv_reg_mr() as usual. If memory
     // is on GPU then use ibv_reg_dmabuf_mr() instead which does not require

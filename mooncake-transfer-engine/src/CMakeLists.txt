@@ -98,6 +98,11 @@ if (USE_ASCEND_HETEROGENEOUS)
   target_link_libraries(transfer_engine PUBLIC ascendcl ascend_transport)
 endif()
 
+if(USE_FURIOSA)
+  target_compile_definitions(transfer_engine PUBLIC USE_FURIOSA)
+  target_link_libraries(transfer_engine PUBLIC furiosa_mem)
+endif()
+
 if(USE_TENT)
   add_compile_definitions(transfer_engine PUBLIC USE_TENT)
   target_link_libraries(transfer_engine PUBLIC tent)
