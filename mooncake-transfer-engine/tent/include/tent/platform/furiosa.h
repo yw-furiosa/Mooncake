@@ -12,43 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef PLATFORM_H
-#define PLATFORM_H
+#ifndef TENT_PLATFORM_FURIOSA_H
+#define TENT_PLATFORM_FURIOSA_H
 
-#include "tent/runtime/topology.h"
+#include "tent/runtime/platform.h"
+#include "tent/common/config.h"
 
 namespace mooncake {
 namespace tent {
 
-enum MemoryType { MTYPE_UNKNOWN, MTYPE_CPU, MTYPE_CUDA, MTYPE_ROCM, MTYPE_FURIOSA };
-
-class Platform {
+class FuriosaPlatform : public Platform {
    public:
-    static Platform &getLoader(std::shared_ptr<Config> conf = nullptr);
+    FuriosaPlatform(std::shared_ptr<Config> config) : conf(std::move(config)) {}
 
-    Platform() {}
-
-    virtual ~Platform() {}
+    virtual ~FuriosaPlatform() {}
 
     virtual Status probe(std::vector<Topology::NicEntry> &nic_list,
-                         std::vector<Topology::MemEntry> &mem_list) = 0;
+                         std::vector<Topology::MemEntry> &mem_list);
 
-    virtual Status allocate(void **pptr, size_t size,
-                            MemoryOptions &options) = 0;
+    virtual Status allocate(void **pptr, size_t size, MemoryOptions &options);
 
-    virtual Status free(void *ptr, size_t size) = 0;
+    virtual Status free(void *ptr, size_t size);
 
-    virtual Status copy(void *dst, void *src, size_t length) = 0;
+    virtual Status copy(void *dst, void *src, size_t length);
 
-    virtual MemoryType getMemoryType(void *addr) = 0;
+    virtual MemoryType getMemoryType(void *addr);
 
     virtual const std::vector<RangeLocation> getLocation(
-        void *start, size_t len, bool skip_prefault = false) = 0;
+        void *start, size_t len, bool skip_prefault = false);
 
-    virtual const std::string type() const = 0;
+    virtual const std::string type() const { return "furiosa"; }
+
+   private:
+    std::shared_ptr<Config> conf;
 };
 
 }  // namespace tent
 }  // namespace mooncake
 
-#endif  // PLATFORM_H
+#endif  // TENT_PLATFORM_FURIOSA_H

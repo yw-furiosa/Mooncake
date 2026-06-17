@@ -86,6 +86,13 @@ if(USE_SUNRISE)
   target_link_libraries(tent_interface INTERFACE tangrt_shared ptml_shared dl)
 endif()
 
+if(USE_FURIOSA)
+  message(STATUS "Furiosa NPU: Enabled")
+  target_compile_definitions(tent_interface INTERFACE USE_FURIOSA)
+  target_include_directories(tent_interface
+                             INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
+endif()
+
 set(YALANTING_TARGET yalantinglibs::yalantinglibs)
 if(NOT TARGET ${YALANTING_TARGET})
   if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -131,6 +138,7 @@ foreach(
   platform_rocm
   platform_ascend
   platform_sunrise
+  platform_furiosa
   tent_xport_gds
   tent_xport_uring
   tent_xport_bufio

@@ -34,6 +34,11 @@
 #include <cuda_runtime.h>
 #endif
 
+#ifdef USE_FURIOSA
+#include <cerrno>
+#include "furiosa_npu.h"
+#endif
+
 #include "tent/common/status.h"
 #include "tent/transport/rdma/endpoint_store.h"
 
@@ -505,6 +510,33 @@ RdmaContext::MemReg RdmaContext::registerMemReg(void* addr, size_t length,
         LOG(FATAL) << "RDMA context " << name() << " not constructed";
         return nullptr;
     }
+
+#ifdef USE_FURIOSA
+    if (furiosa::contains((uintptr_t)addr) && verbs_.ibv_reg_dmabuf_mr) {
+        int dmabuf_fd = -1;
+        uint64_t dmabuf_offset = 0;
+        if (!furiosa::dmabufFor((uintptr_t)addr, length, &dmabuf_fd,
+                                &dmabuf_offset)) {
+            LOG(ERROR) << "Failed to resolve Furiosa dmabuf for " << addr;
+            return nullptr;
+        }
+        ibv_mr* entry = verbs_.ibv_reg_dmabuf_mr(
+            native_pd_, dmabuf_offset, length, (uintptr_t)addr, dmabuf_fd,
+            access);
+        const int regErrno = errno;
+        if (dmabuf_fd >= 0) ::close(dmabuf_fd);
+        if (!entry) {
+            errno = regErrno;
+            PLOG(ERROR) << "ibv_reg_dmabuf_mr (Furiosa) failed for " << addr
+                        << " in RDMA device " << device_name_;
+            return nullptr;
+        }
+        mr_set_mutex_.lock();
+        mr_set_.insert(entry);
+        mr_set_mutex_.unlock();
+        return entry;
+    }
+#endif
 
 #ifdef USE_CUDA
     // Ensure CUDA context is current for GPU memory registration

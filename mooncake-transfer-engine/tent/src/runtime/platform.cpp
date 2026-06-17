@@ -22,6 +22,8 @@
 #include "tent/platform/sunrise.h"
 #elif defined(USE_ASCEND) || defined(USE_ASCEND_DIRECT)
 #include "tent/platform/ascend.h"
+#elif defined(USE_FURIOSA)
+#include "tent/platform/furiosa.h"
 #else
 #include "tent/platform/cpu.h"
 #endif
@@ -41,6 +43,8 @@ Platform& Platform::getLoader(std::shared_ptr<Config> conf) {
         g_instance = std::make_shared<SunrisePlatform>(conf);
 #elif defined(USE_ASCEND) || defined(USE_ASCEND_DIRECT)
         g_instance = std::make_shared<AscendPlatform>(conf);
+#elif defined(USE_FURIOSA)
+        g_instance = std::make_shared<FuriosaPlatform>(conf);
 #else
         g_instance = std::make_shared<CpuPlatform>(conf);
 #endif
