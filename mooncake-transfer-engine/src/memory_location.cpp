@@ -16,6 +16,10 @@
 
 #include "cuda_alike.h"
 
+#ifdef USE_FURIOSA
+#include "furiosa_npu.h"
+#endif
+
 namespace mooncake {
 
 uintptr_t alignPage(uintptr_t address) { return address & ~(pagesize - 1); }
@@ -34,6 +38,17 @@ const std::vector<MemoryLocationEntry> getMemoryLocation(void *start,
                                                          size_t len,
                                                          bool only_first_page) {
     std::vector<MemoryLocationEntry> entries;
+
+#ifdef USE_FURIOSA
+    {
+        int furiosa_device = furiosa::deviceOf((uint64_t)start);
+        if (furiosa_device >= 0) {
+            entries.push_back({(uint64_t)start, len,
+                               FURIOSA_PREFIX + std::to_string(furiosa_device)});
+            return entries;
+        }
+    }
+#endif
 
 #if defined(USE_CUDA) || defined(USE_MUSA) || defined(USE_HIP) ||  \
     defined(USE_MLU) || defined(USE_MACA) || defined(USE_HYGON) || \

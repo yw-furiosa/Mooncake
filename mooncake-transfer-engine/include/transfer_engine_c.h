@@ -116,6 +116,13 @@ int uninstallTransport(transfer_engine_t engine, const char *proto);
 
 segment_id_t openSegment(transfer_engine_t engine, const char *segment_name);
 
+// Returns the absolute address and length of the first registered buffer of a
+// remote segment, used to compute transfer_request.target_offset. Returns 0 on
+// success, non-zero on failure (unknown segment id or no buffers).
+int getSegmentFirstBufferAddress(transfer_engine_t engine,
+                                 segment_id_t segment_id, uint64_t *addr_out,
+                                 uint64_t *length_out);
+
 segment_id_t openSegmentNoCache(transfer_engine_t engine,
                                 const char *segment_name);
 

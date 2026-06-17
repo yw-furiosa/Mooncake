@@ -87,6 +87,12 @@ option(USE_CXL "option for using CXL protocol" OFF)
 option(USE_EFA "option for using AWS EFA transport" OFF)
 option(USE_UB "option for using UB protocol transport" OFF)
 option(USE_SUNRISE "option for enabling gpu features for Sunrise GPU with Tang runtime" OFF)
+option(USE_FURIOSA "option for enabling Furiosa NPU RDMA support" OFF)
+
+if (USE_FURIOSA)
+  add_compile_definitions(USE_FURIOSA)
+  message(STATUS "Furiosa NPU RDMA support is enabled")
+endif()
 
 if (USE_UB)
   add_compile_definitions(USE_UB)

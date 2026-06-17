@@ -80,6 +80,17 @@ segment_id_t openSegmentNoCache(transfer_engine_t engine,
     return native->openSegment(segment_name);
 }
 
+int getSegmentFirstBufferAddress(transfer_engine_t engine,
+                                 segment_id_t segment_id, uint64_t *addr_out,
+                                 uint64_t *length_out) {
+    TransferEngine *native = (TransferEngine *)engine;
+    auto desc = native->getMetadata()->getSegmentDescByID(segment_id, true);
+    if (!desc || desc->buffers.empty()) return -1;
+    if (addr_out) *addr_out = desc->buffers[0].addr;
+    if (length_out) *length_out = desc->buffers[0].length;
+    return 0;
+}
+
 int closeSegment(transfer_engine_t engine, segment_id_t segment_id) {
     TransferEngine *native = (TransferEngine *)engine;
     return native->closeSegment(segment_id);

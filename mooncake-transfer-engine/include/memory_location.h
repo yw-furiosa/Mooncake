@@ -40,6 +40,7 @@ const std::vector<MemoryLocationEntry> getMemoryLocation(void *start,
 
 const static std::string kWildcardLocation = "*";
 const static std::string kSegmentsLocationPrefix = "segments:";
+const static std::string FURIOSA_PREFIX = "furiosa:";
 
 /* ------------------------------------------------------------------ */
 /* Segments location encoding                                         */
