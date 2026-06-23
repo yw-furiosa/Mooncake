@@ -3,6 +3,14 @@ name = "transfer_engine_rust"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "transfer_engine_rust"
+path = "src/lib.rs"
+
+[[bin]]
+name = "transfer_engine_demo"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1.0.79"
 libc = "0.2"
