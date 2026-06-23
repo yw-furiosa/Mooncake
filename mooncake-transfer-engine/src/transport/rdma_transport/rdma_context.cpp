@@ -366,7 +366,10 @@ int RdmaContext::registerMemoryRegionInternal(void *addr, size_t length,
         mrMeta.addr = addr;
         mrMeta.mr = ibv_reg_dmabuf_mr(pd_, dmabuf_offset, length,
                                       (uintptr_t)addr, dmabuf_fd, access);
+        const int regErrno = errno;
+        if (dmabuf_fd >= 0) ::close(dmabuf_fd);
         if (!mrMeta.mr) {
+            errno = regErrno;
             PLOG(ERROR) << "ibv_reg_dmabuf_mr (Furiosa) failed for "
                         << (uintptr_t)addr << " in RDMA device "
                         << device_name_;

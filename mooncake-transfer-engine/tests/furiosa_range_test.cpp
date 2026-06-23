@@ -27,14 +27,14 @@ constexpr int kFd0 = 7;
 constexpr int kFd1 = 9;
 
 std::vector<furiosa::DramRange> oneDevice() {
-    return {{0, kAvailBase, kAvailSize, kFd0}};
+    return {{0, kRawBase, kAvailBase, kAvailSize, kFd0}};
 }
 
 constexpr uint64_t kDev1Gap = 8ULL * 1024 * 1024 * 1024;
 
 std::vector<furiosa::DramRange> twoDevices() {
-    return {{0, kAvailBase, kAvailSize, kFd0},
-            {1, kAvailBase + kDev1Gap, kAvailSize, kFd1}};
+    return {{0, kRawBase, kAvailBase, kAvailSize, kFd0},
+            {1, kRawBase + kDev1Gap, kAvailBase + kDev1Gap, kAvailSize, kFd1}};
 }
 
 TEST(FuriosaRangeTest, DeviceOfBoundaries) {
@@ -52,71 +52,71 @@ TEST(FuriosaRangeTest, DeviceOfMultiAndGap) {
     EXPECT_EQ(furiosa::deviceOfIn(ranges, kAvailBase + kAvailSize + 0x1000), -1);
 }
 
-TEST(FuriosaRangeTest, DmabufOffsetIsRelativeToAvailableBase) {
+TEST(FuriosaRangeTest, ExportOffsetIsRelativeToRawBase) {
     auto ranges = oneDevice();
-    int fd = -1;
-    uint64_t offset = 0;
-    ASSERT_TRUE(furiosa::toDmabufOffsetIn(ranges, kAvailBase + 0x2000, 0x1000,
-                                          &fd, &offset));
-    EXPECT_EQ(fd, kFd0);
-    EXPECT_EQ(offset, 0x2000ULL);
+    int idx = -1;
+    uint64_t export_offset = 0;
+    ASSERT_TRUE(furiosa::toExportRegionIn(ranges, kAvailBase + 0x2000, 0x1000,
+                                          &idx, &export_offset));
+    EXPECT_EQ(idx, 0);
+    EXPECT_EQ(export_offset, kDramBase + 0x2000);
 }
 
-TEST(FuriosaRangeTest, DmabufOffsetZeroAtBase) {
+TEST(FuriosaRangeTest, ExportOffsetAtBaseEqualsDramBase) {
     auto ranges = oneDevice();
-    int fd = -1;
-    uint64_t offset = 0;
-    ASSERT_TRUE(
-        furiosa::toDmabufOffsetIn(ranges, kAvailBase, 0x1000, &fd, &offset));
-    EXPECT_EQ(fd, kFd0);
-    EXPECT_EQ(offset, 0ULL);
+    int idx = -1;
+    uint64_t export_offset = 0;
+    ASSERT_TRUE(furiosa::toExportRegionIn(ranges, kAvailBase, 0x1000, &idx,
+                                          &export_offset));
+    EXPECT_EQ(idx, 0);
+    EXPECT_EQ(export_offset, kDramBase);
 }
 
-TEST(FuriosaRangeTest, DmabufSelectsOwningDeviceFd) {
+TEST(FuriosaRangeTest, ExportSelectsOwningDevice) {
     auto ranges = twoDevices();
-    int fd = -1;
-    uint64_t offset = 0;
-    ASSERT_TRUE(furiosa::toDmabufOffsetIn(ranges, kAvailBase + kDev1Gap + 0x3000,
-                                          0x1000, &fd, &offset));
-    EXPECT_EQ(fd, kFd1);
-    EXPECT_EQ(offset, 0x3000ULL);
+    int idx = -1;
+    uint64_t export_offset = 0;
+    ASSERT_TRUE(furiosa::toExportRegionIn(ranges, kAvailBase + kDev1Gap + 0x3000,
+                                          0x1000, &idx, &export_offset));
+    EXPECT_EQ(idx, 1);
+    EXPECT_EQ(export_offset, kDramBase + 0x3000);
 }
 
-TEST(FuriosaRangeTest, DmabufRejectsUnalignedAddr) {
+TEST(FuriosaRangeTest, ExportRejectsUnalignedAddr) {
     auto ranges = oneDevice();
-    int fd = -1;
-    uint64_t offset = 0;
-    EXPECT_FALSE(furiosa::toDmabufOffsetIn(ranges, kAvailBase + 0x1800, 0x1000,
-                                           &fd, &offset));
+    int idx = -1;
+    uint64_t export_offset = 0;
+    EXPECT_FALSE(furiosa::toExportRegionIn(ranges, kAvailBase + 0x1800, 0x1000,
+                                           &idx, &export_offset));
 }
 
-TEST(FuriosaRangeTest, DmabufRejectsUnalignedLength) {
+TEST(FuriosaRangeTest, ExportRejectsUnalignedLength) {
     auto ranges = oneDevice();
-    int fd = -1;
-    uint64_t offset = 0;
-    EXPECT_FALSE(furiosa::toDmabufOffsetIn(ranges, kAvailBase, 0x800, &fd,
-                                           &offset));
+    int idx = -1;
+    uint64_t export_offset = 0;
+    EXPECT_FALSE(furiosa::toExportRegionIn(ranges, kAvailBase, 0x800, &idx,
+                                           &export_offset));
 }
 
-TEST(FuriosaRangeTest, DmabufRejectsOutOfRange) {
+TEST(FuriosaRangeTest, ExportRejectsOutOfRange) {
     auto ranges = oneDevice();
-    int fd = -1;
-    uint64_t offset = 0;
+    int idx = -1;
+    uint64_t export_offset = 0;
+    EXPECT_FALSE(furiosa::toExportRegionIn(ranges, kAvailBase - 0x1000, 0x1000,
+                                           &idx, &export_offset));
+    EXPECT_FALSE(furiosa::toExportRegionIn(ranges, kAvailBase + kAvailSize,
+                                           0x1000, &idx, &export_offset));
+    EXPECT_FALSE(furiosa::toExportRegionIn(ranges, kAvailBase,
+                                           kAvailSize + 0x1000, &idx,
+                                           &export_offset));
+}
+
+TEST(FuriosaRangeTest, ExportRejectsZeroLength) {
+    auto ranges = oneDevice();
+    int idx = -1;
+    uint64_t export_offset = 0;
     EXPECT_FALSE(
-        furiosa::toDmabufOffsetIn(ranges, kAvailBase - 0x1000, 0x1000, &fd,
-                                  &offset));
-    EXPECT_FALSE(furiosa::toDmabufOffsetIn(ranges, kAvailBase + kAvailSize,
-                                           0x1000, &fd, &offset));
-    EXPECT_FALSE(furiosa::toDmabufOffsetIn(ranges, kAvailBase,
-                                           kAvailSize + 0x1000, &fd, &offset));
-}
-
-TEST(FuriosaRangeTest, DmabufRejectsZeroLength) {
-    auto ranges = oneDevice();
-    int fd = -1;
-    uint64_t offset = 0;
-    EXPECT_FALSE(
-        furiosa::toDmabufOffsetIn(ranges, kAvailBase, 0, &fd, &offset));
+        furiosa::toExportRegionIn(ranges, kAvailBase, 0, &idx, &export_offset));
 }
 
 }  // namespace

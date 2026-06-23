@@ -24,15 +24,18 @@ namespace furiosa {
 
 struct DramRange {
     int device_id;
+    uint64_t raw_base;
     uint64_t available_base;
     uint64_t available_size;
-    int dmabuf_fd;
+    int bar_fd;
 };
 
 int deviceOfIn(const std::vector<DramRange> &ranges, uint64_t addr);
 
-bool toDmabufOffsetIn(const std::vector<DramRange> &ranges, uint64_t addr,
-                      size_t length, int *out_fd, uint64_t *out_offset);
+// Pure validation + offset math (no ioctl) for unit testing. Computes the
+// BAR4-relative export offset for a buffer, and returns the owning range index.
+bool toExportRegionIn(const std::vector<DramRange> &ranges, uint64_t addr,
+                      size_t length, int *out_idx, uint64_t *out_export_offset);
 
 bool initRanges();
 

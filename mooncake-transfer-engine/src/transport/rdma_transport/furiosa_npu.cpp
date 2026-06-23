@@ -82,27 +82,18 @@ void doInitRanges() {
             continue;
         }
 
-        NpuDmabufRegion region{};
-        region.offset = avail_info.bar_phy_addr - raw_info.bar_phy_addr;
-        region.size = avail_info.bar_size;
-        region.fd = -1;
-        if (::ioctl(fd, NPU_BAR_EXPORT_DMABUF, &region) != 0) {
-            PLOG(ERROR) << "Furiosa: NPU_BAR_EXPORT_DMABUF failed on " << path;
-            ::close(fd);
-            continue;
-        }
-        ::close(fd);
-
         DramRange range;
         range.device_id = id;
+        range.raw_base = raw_info.bar_phy_addr;
         range.available_base = avail_info.bar_phy_addr;
         range.available_size = avail_info.bar_size;
-        range.dmabuf_fd = region.fd;
+        range.bar_fd = fd;
         g_ranges.push_back(range);
 
-        LOG(INFO) << "Furiosa: npu" << id << " available_base=0x" << std::hex
+        LOG(INFO) << "Furiosa: npu" << id << " raw_base=0x" << std::hex
+                  << range.raw_base << " available_base=0x"
                   << range.available_base << " size=0x" << range.available_size
-                  << std::dec << " dmabuf_fd=" << range.dmabuf_fd;
+                  << std::dec << " bar_fd=" << range.bar_fd;
     }
 }
 
@@ -118,8 +109,8 @@ int deviceOfIn(const std::vector<DramRange> &ranges, uint64_t addr) {
     return -1;
 }
 
-bool toDmabufOffsetIn(const std::vector<DramRange> &ranges, uint64_t addr,
-                      size_t length, int *out_fd, uint64_t *out_offset) {
+bool toExportRegionIn(const std::vector<DramRange> &ranges, uint64_t addr,
+                      size_t length, int *out_idx, uint64_t *out_export_offset) {
     int idx = -1;
     for (size_t i = 0; i < ranges.size(); ++i) {
         if (addr >= ranges[i].available_base &&
@@ -140,8 +131,8 @@ bool toDmabufOffsetIn(const std::vector<DramRange> &ranges, uint64_t addr,
         return false;
     }
 
-    *out_fd = range.dmabuf_fd;
-    *out_offset = addr - range.available_base;
+    *out_idx = idx;
+    *out_export_offset = addr - range.raw_base;
     return true;
 }
 
@@ -159,12 +150,29 @@ bool contains(uint64_t addr) { return deviceOf(addr) >= 0; }
 
 bool dmabufFor(uint64_t addr, size_t length, int *out_fd, uint64_t *out_offset) {
     initRanges();
-    if (!toDmabufOffsetIn(g_ranges, addr, length, out_fd, out_offset)) {
+
+    int idx = -1;
+    uint64_t export_offset = 0;
+    if (!toExportRegionIn(g_ranges, addr, length, &idx, &export_offset)) {
         LOG(ERROR) << "Furiosa: no dmabuf for 0x" << std::hex << addr << std::dec
                    << " len=" << length
                    << " (unowned, out-of-range, or not page-aligned)";
         return false;
     }
+
+    NpuDmabufRegion region{};
+    region.offset = export_offset;
+    region.size = length;
+    region.fd = -1;
+    if (::ioctl(g_ranges[idx].bar_fd, NPU_BAR_EXPORT_DMABUF, &region) != 0) {
+        PLOG(ERROR) << "Furiosa: NPU_BAR_EXPORT_DMABUF failed for 0x" << std::hex
+                    << addr << " export_offset=0x" << export_offset << std::dec
+                    << " len=" << length;
+        return false;
+    }
+
+    *out_fd = region.fd;
+    *out_offset = 0;
     return true;
 }
 
