@@ -121,18 +121,10 @@ bool toExportRegionIn(const std::vector<DramRange> &ranges, uint64_t addr,
     }
     if (idx < 0) return false;
 
-    const DramRange &range = ranges[idx];
     if (length == 0) return false;
     if (addr + length < addr) return false;
-    if (addr + length > range.available_base + range.available_size) {
-        return false;
-    }
-    if ((addr & (kPageSize - 1)) != 0 || (length & (kPageSize - 1)) != 0) {
-        return false;
-    }
-
     *out_idx = idx;
-    *out_export_offset = addr - range.raw_base;
+    *out_export_offset = addr - ranges[idx].raw_base;
     return true;
 }
 
@@ -160,9 +152,13 @@ bool dmabufFor(uint64_t addr, size_t length, int *out_fd, uint64_t *out_offset) 
         return false;
     }
 
+    uint64_t aligned_offset = export_offset & ~(kPageSize - 1);
+    uint64_t pad = export_offset - aligned_offset;
+    uint64_t aligned_size = (pad + length + kPageSize - 1) & ~(kPageSize - 1);
+
     NpuDmabufRegion region{};
-    region.offset = export_offset;
-    region.size = length;
+    region.offset = aligned_offset;
+    region.size = aligned_size;
     region.fd = -1;
     if (::ioctl(g_ranges[idx].bar_fd, NPU_BAR_EXPORT_DMABUF, &region) != 0) {
         PLOG(ERROR) << "Furiosa: NPU_BAR_EXPORT_DMABUF failed for 0x" << std::hex
@@ -172,7 +168,7 @@ bool dmabufFor(uint64_t addr, size_t length, int *out_fd, uint64_t *out_offset) 
     }
 
     *out_fd = region.fd;
-    *out_offset = 0;
+    *out_offset = pad;
     return true;
 }
 

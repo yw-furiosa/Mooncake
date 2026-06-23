@@ -364,8 +364,9 @@ int RdmaContext::registerMemoryRegionInternal(void *addr, size_t length,
             return ERR_CONTEXT;
         }
         mrMeta.addr = addr;
-        mrMeta.mr = ibv_reg_dmabuf_mr(pd_, dmabuf_offset, length,
-                                      (uintptr_t)addr, dmabuf_fd, access);
+        mrMeta.mr = ibv_reg_dmabuf_mr(
+            pd_, 0, (dmabuf_offset + length + 4095) & ~(size_t)4095,
+            (uintptr_t)addr - dmabuf_offset, dmabuf_fd, access);
         const int regErrno = errno;
         if (dmabuf_fd >= 0) ::close(dmabuf_fd);
         if (!mrMeta.mr) {
