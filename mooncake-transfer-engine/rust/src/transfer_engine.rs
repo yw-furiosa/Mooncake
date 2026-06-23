@@ -65,11 +65,7 @@ pub struct TransferEngine {
 }
 
 impl TransferEngine {
-    pub fn new(
-        metadata_uri: &str,
-        local_server_name: &str,
-        rpc_port: u64,
-    ) -> Result<Self> {
+    pub fn new(metadata_uri: &str, local_server_name: &str, rpc_port: u64) -> Result<Self> {
         let metadata_uri_c =
             CString::new(metadata_uri).map_err(|_| anyhow!("CString::new failed"))?;
         let local_server_name_c =
@@ -221,7 +217,12 @@ impl TransferEngine {
             })
         }
         let ret = unsafe {
-            bindings::submitTransfer(self.engine, batch_id, requests_c.as_mut_ptr(), requests.len())
+            bindings::submitTransfer(
+                self.engine,
+                batch_id,
+                requests_c.as_mut_ptr(),
+                requests.len(),
+            )
         };
         if ret != 0 {
             bail!("Failed to submit transfer")
@@ -235,8 +236,9 @@ impl TransferEngine {
             status: 0,
             transferred_bytes: 0,
         };
-        let ret =
-            unsafe { bindings::getTransferStatus(self.engine, batch_id, task_id as usize, &mut status) };
+        let ret = unsafe {
+            bindings::getTransferStatus(self.engine, batch_id, task_id as usize, &mut status)
+        };
         if ret != 0 {
             bail!("Failed to get transfer status")
         } else {
@@ -251,6 +253,18 @@ impl TransferEngine {
         } else {
             Ok(())
         }
+    }
+
+    pub fn segment_first_buffer(&self, segment_id: i32) -> Result<(u64, u64)> {
+        let mut addr: u64 = 0;
+        let mut length: u64 = 0;
+        let rc = unsafe {
+            bindings::getSegmentFirstBufferAddress(self.engine, segment_id, &mut addr, &mut length)
+        };
+        if rc != 0 {
+            bail!("getSegmentFirstBufferAddress returned {rc}")
+        }
+        Ok((addr, length))
     }
 
     pub fn open_segment(&self, name: String) -> Result<i32> {

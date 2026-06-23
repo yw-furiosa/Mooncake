@@ -46,6 +46,9 @@
 #include "transport/rdma_transport/rdma_transport.h"
 #include "transport/rdma_transport/worker_pool.h"
 #include "transport/transport.h"
+#ifdef USE_FURIOSA
+#include "furiosa_npu.h"
+#endif
 
 namespace mooncake {
 static int isNullGid(union ibv_gid *gid) {
@@ -350,6 +353,32 @@ int RdmaContext::registerMemoryRegionInternal(void *addr, size_t length,
                       << "shrink it to " << globalConfig().max_mr_size;
         length = (size_t)globalConfig().max_mr_size;
     }
+#ifdef USE_FURIOSA
+    if (furiosa::contains((uintptr_t)addr)) {
+        int dmabuf_fd = -1;
+        uint64_t dmabuf_offset = 0;
+        if (!furiosa::dmabufFor((uintptr_t)addr, length, &dmabuf_fd,
+                                &dmabuf_offset)) {
+            LOG(ERROR) << "Failed to resolve Furiosa dmabuf for "
+                       << (uintptr_t)addr;
+            return ERR_CONTEXT;
+        }
+        mrMeta.addr = addr;
+        mrMeta.mr = ibv_reg_dmabuf_mr(
+            pd_, 0, (dmabuf_offset + length + 4095) & ~(size_t)4095,
+            (uintptr_t)addr - dmabuf_offset, dmabuf_fd, access);
+        const int regErrno = errno;
+        if (dmabuf_fd >= 0) ::close(dmabuf_fd);
+        if (!mrMeta.mr) {
+            errno = regErrno;
+            PLOG(ERROR) << "ibv_reg_dmabuf_mr (Furiosa) failed for "
+                        << (uintptr_t)addr << " in RDMA device "
+                        << device_name_;
+            return ERR_CONTEXT;
+        }
+        return 0;
+    }
+#endif
 #if defined(USE_MLU) || defined(USE_MACA) || defined(USE_CUDA)
     // Implement register memory in a way that does not assume the presence of
     // nvidia-peermem. If memory is on CPU call ibv_reg_mr() as usual. If memory

@@ -16,20 +16,20 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    println!("cargo:rustc-link-search=native=../build/src");
-    println!("cargo:rustc-link-search=native=../../build/mooncake-transfer-engine/src");
+    let root = env::var("MOONCAKE_ROOT").unwrap_or_else(|_| "..".to_string());
+
+    println!("cargo:rustc-link-search=native={root}/build/mooncake-transfer-engine/src");
+    println!("cargo:rustc-link-search=native={root}/build/src");
     println!("cargo:rustc-link-lib=static=transfer_engine");
 
-    // libbase.a holds mooncake::Status, which libtransfer_engine.a references.
-    println!("cargo:rustc-link-search=native=../build/src/common/base");
-    println!("cargo:rustc-link-search=native=../../build/mooncake-transfer-engine/src/common/base");
+    println!(
+        "cargo:rustc-link-search=native={root}/build/mooncake-transfer-engine/src/common/base"
+    );
+    println!("cargo:rustc-link-search=native={root}/build/src/common/base");
     println!("cargo:rustc-link-lib=static=base");
 
-    // The transfer_engine build uses ASIO_SEPARATE_COMPILATION + ASIO_DYN_LINK,
-    // so the asio symbols live in mooncake-asio/libasio.so.  Link it whenever
-    // we can find it (standalone cmake build places it alongside src/).
-    println!("cargo:rustc-link-search=native=../build/mooncake-asio");
-    println!("cargo:rustc-link-search=native=../../build/mooncake-asio");
+    println!("cargo:rustc-link-search=native={root}/build/mooncake-common");
+    println!("cargo:rustc-link-search=native={root}/build/mooncake-asio");
     println!("cargo:rustc-link-lib=asio");
 
     // EFA on AWS installs libfabric under /opt/amazon/efa/lib.
@@ -96,8 +96,9 @@ fn main() {
         println!("cargo:rustc-link-lib=cudart");
     }
 
+    let header = format!("{root}/mooncake-transfer-engine/include/transfer_engine_c.h");
     let bindings = bindgen::builder()
-        .header("../include/transfer_engine_c.h")
+        .header(&header)
         .generate()
         .expect("Unable to generate bindings");
 

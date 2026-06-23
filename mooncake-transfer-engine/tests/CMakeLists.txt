@@ -179,6 +179,12 @@ add_executable(common_test ${WORKSPACE}/common_test.cpp)
 target_link_libraries(common_test PUBLIC transfer_engine gtest gtest_main)
 add_test(NAME common_test COMMAND common_test)
 
+if (USE_FURIOSA)
+    add_executable(furiosa_range_test ${WORKSPACE}/furiosa_range_test.cpp)
+    target_link_libraries(furiosa_range_test PUBLIC transfer_engine gtest gtest_main)
+    add_test(NAME furiosa_range_test COMMAND furiosa_range_test)
+endif()
+
 if (USE_ASCEND_DIRECT)
     # AscendDirectTransport unit test with mock implementations
     # Mock implementations are included in the test file via anonymous namespace
